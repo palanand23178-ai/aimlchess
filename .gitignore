@@ -1,0 +1,27 @@
+# ML models (too large for normal GitHub push)
+*.pt
+*.pth
+*.pkl
+model_best.pth
+model_best1.pth
+model_final.pth
+
+# Checkpoints / generated artifacts
+checkpoints/
+__pycache__/
+*.pyc
+
+# Data files
+data/*.npy
+lichess.pgn
+
+# Frontend / package deps
+node_modules/
+
+# OS / editor temp files
+.DS_Store
+tempCodeRunnerFile.*
+
+# Optional plot artifacts (uncomment if you do not want to track)
+training_plot.png
+performance_curve.png

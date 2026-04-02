@@ -1,0 +1,33 @@
+Games:    500 | Positions kept:   34,010
+  Games:   1000 | Positions kept:   65,790
+  Games:   1500 | Positions kept:   98,626
+  Games:   2000 | Positions kept:  130,631
+  Games:   2500 | Positions kept:  161,977
+  Games:   3000 | Positions kept:  194,256
+  Games:   3500 | Positions kept:  226,161
+  Games:   4000 | Positions kept:  256,633
+  Games:   4500 | Positions kept:  287,378
+  Games:   5000 | Positions kept:  318,853
+  Games:   5500 | Positions kept:  349,709
+  Games:   6000 | Positions kept:  381,558
+  Games:   6500 | Positions kept:  411,474
+  Games:   7000 | Positions kept:  443,693
+  Games:   7500 | Positions kept:  476,219
+  Games:   8000 | Positions kept:  506,791
+  Games:   8500 | Positions kept:  538,820
+  Games:   9000 | Positions kept:  570,295
+  Games:   9500 | Positions kept:  602,529
+  Games:  10000 | Positions kept:  634,385
+
+── Parse complete ───────────────────────────────
+  Games parsed       :   10,000
+  Positions kept     :  634,385
+  Skipped (blunder)  :    1,992
+  Skipped (duplicate):   28,091
+  Skipped (opening)  :        0
+
+✅ Saved to 'data/'
+  features : (634385, 65, 13)  (2144.2 MB)
+  moves    : (634385,)
+  scores   : (634385,)
+  fens     : (634385,)

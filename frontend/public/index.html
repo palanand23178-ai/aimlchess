@@ -1,0 +1,963 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Neural Chess</title>
+    <style>
+      :root{
+        --bg0:#070A13;
+        --bg1:#0B1636;
+        --card: rgba(255,255,255,0.06);
+        --card2: rgba(255,255,255,0.09);
+        --text: rgba(255,255,255,0.92);
+        --muted: rgba(255,255,255,0.65);
+        --accent:#7C5CFF;
+        --accent2:#00D4FF;
+        --good:#31d0aa;
+        --warn:#6b66ff;
+        --bad:#ff6b8b;
+      }
+
+      *{ box-sizing:border-box; }
+
+      html,body{ height:100%; }
+      body{
+        margin:0;
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+        color:var(--text);
+        background: radial-gradient(1200px 600px at 15% -10%, rgba(124,92,255,0.35), transparent 55%),
+                    radial-gradient(900px 500px at 85% 10%, rgba(0,212,255,0.22), transparent 50%),
+                    linear-gradient(180deg, var(--bg0), var(--bg1));
+        overflow-x:hidden;
+      }
+
+      .bg-shift{
+        position:fixed;
+        inset:-20%;
+        background:
+          radial-gradient(500px 300px at 15% 25%, rgba(124,92,255,0.22), transparent 60%),
+          radial-gradient(500px 300px at 75% 35%, rgba(0,212,255,0.18), transparent 60%);
+        filter: blur(10px);
+        animation: bgShift 10s ease-in-out infinite alternate;
+        pointer-events:none;
+      }
+
+      @keyframes bgShift{
+        0%{ transform: translate3d(-1.5%, -1.5%, 0) scale(1.02); opacity:0.9; }
+        100%{ transform: translate3d(1.5%, 1.5%, 0) scale(1.06); opacity:1; }
+      }
+
+      .wrap{
+        position:relative;
+        min-height:100%;
+        padding: 18px 18px 28px;
+        max-width: 1120px;
+        margin: 0 auto;
+      }
+
+      header{
+        display:flex;
+        align-items:flex-start;
+        justify-content:space-between;
+        gap: 14px;
+        padding: 14px 10px 6px;
+      }
+
+      .brand h1{
+        margin:0;
+        font-weight:850;
+        letter-spacing:0.2px;
+        font-size: clamp(20px, 2.3vw, 30px);
+        background: linear-gradient(90deg, rgba(255,255,255,0.95), rgba(124,92,255,0.95), rgba(0,212,255,0.92));
+        -webkit-background-clip: text;
+        background-clip:text;
+        color: transparent;
+        animation: titleFloat 4.6s ease-in-out infinite;
+      }
+
+      @keyframes titleFloat{
+        0%,100%{ transform: translateY(0); }
+        50%{ transform: translateY(-4px); }
+      }
+
+      .brand p{
+        margin: 6px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.4;
+      }
+
+      .toolbar{
+        display:flex;
+        flex-wrap:wrap;
+        gap: 10px;
+        justify-content:flex-end;
+      }
+
+      .btn{
+        border: 1px solid rgba(255,255,255,0.14);
+        background: linear-gradient(135deg, rgba(124,92,255,0.22), rgba(0,212,255,0.12));
+        color: var(--text);
+        padding: 10px 12px;
+        border-radius: 12px;
+        cursor:pointer;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+        transition: transform 160ms ease, border-color 160ms ease, filter 160ms ease;
+        user-select:none;
+      }
+      .btn.secondary{
+        background: rgba(255,255,255,0.05);
+      }
+      .btn:hover{
+        transform: translateY(-1px);
+        border-color: rgba(124,92,255,0.55);
+        filter: brightness(1.08);
+      }
+      .btn:active{
+        transform: translateY(0);
+        filter: brightness(0.98);
+      }
+      .btn:disabled{
+        opacity:0.6;
+        cursor:not-allowed;
+      }
+
+      main{
+        display:grid;
+        grid-template-columns: 708px 360px;
+        gap: 16px;
+        align-items:start;
+        margin-top: 8px;
+      }
+
+      @media (max-width: 920px){
+        main{ grid-template-columns: 1fr; }
+      }
+
+      .card{
+        background: linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.04));
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 18px;
+        box-shadow: 0 30px 80px rgba(0,0,0,0.25);
+      }
+
+      .boardCard{
+        padding: 14px;
+        overflow-x: auto;
+        overscroll-behavior-x: contain;
+        width: 708px;
+        min-width: 708px;
+      }
+
+      .boardTop{
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap: 10px;
+        margin-bottom: 10px;
+      }
+
+      .badge{
+        display:flex;
+        gap:10px;
+        align-items:center;
+        padding: 8px 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(255,255,255,0.05);
+        color: var(--muted);
+      }
+      .badge strong{
+        color: var(--text);
+      }
+
+      .thinking{
+        display:flex;
+        align-items:center;
+        gap:10px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .spinner{
+        width:18px;
+        height:18px;
+        border-radius:50%;
+        border: 2px solid rgba(255,255,255,0.18);
+        border-top-color: rgba(124,92,255,0.95);
+        animation: spin 0.85s linear infinite;
+      }
+      @keyframes spin{ to{ transform: rotate(360deg); } }
+
+      .statusLine{
+        margin: 8px 0 2px;
+        min-height: 18px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .statusLine.check{
+        color: #2b1400;
+        font-weight: 900;
+        letter-spacing: 0.4px;
+        text-transform: uppercase;
+        padding: 8px 10px;
+        border-radius: 12px;
+        border: 1px solid rgba(0,0,0,0.12);
+        background: linear-gradient(180deg, rgba(216,178,107,0.95), rgba(202,161,85,0.92));
+        box-shadow: 0 14px 30px rgba(0,0,0,0.18);
+        display: inline-block;
+      }
+
+      .board{
+        width: 680px;
+        min-width: 680px;
+        max-width: none;
+        height: 680px;
+        aspect-ratio: 1 / 1;
+        display:grid;
+        grid-template-columns: repeat(8, 1fr);
+        grid-template-rows: repeat(8, 1fr);
+        position: relative;
+        border-radius: 14px;
+        overflow:hidden;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(0,0,0,0.18);
+        flex: 0 0 auto;
+        contain: layout paint;
+      }
+
+      .arrowLayer{
+        position:absolute;
+        inset:0;
+        width:100%;
+        height:100%;
+        pointer-events:none;
+        z-index: 2;
+      }
+      @media (max-width: 740px){
+        body{ overflow-x:auto; scrollbar-gutter: stable; }
+      }
+
+      .square{
+        position:relative;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        cursor:pointer;
+        user-select:none;
+        transition: transform 140ms ease, filter 140ms ease;
+        aspect-ratio: 1 / 1;
+        min-width: 0;
+        min-height: 0;
+      }
+      .square.light{
+        background: linear-gradient(180deg, #6f5fe8, #a253f7);
+      }
+      .square.dark{
+        background: linear-gradient(180deg, #240336, #6f4323);
+      }
+      .square:hover{
+        transform: translateY(-0.5px);
+      }
+      .square .piece{
+        font-size: 58px;
+        line-height: 1;
+        filter: drop-shadow(0 10px 16px rgba(0,0,0,0.35));
+        transform: translateZ(0);
+      }
+      .piece.white{
+        color: #ffffff;
+        text-shadow:
+          0 2px 0 rgba(0,0,0,0.25),
+          0 0 0.5px rgba(0,0,0,0.45),
+          0 0 10px rgba(255,255,255,0.18);
+      }
+      .piece.black{
+        color: #050505;
+        text-shadow:
+          0 0 0.8px rgba(255,255,255,0.55),
+          0 0 12px rgba(0,0,0,0.18);
+      }
+
+      .square.selected{
+        outline: 3px solid rgba(255, 59, 95, 0.95);
+        outline-offset:-3px;
+        box-shadow:
+          inset 0 0 0 2px rgba(255, 59, 95, 0.45),
+          0 0 0 2px rgba(0,0,0,0.08);
+      }
+
+      .square.legal::after{
+        content:"";
+        width: 22%;
+        height: 22%;
+        border-radius:50%;
+        background: rgba(0,212,255,0.65);
+        box-shadow: 0 0 0 6px rgba(0,212,255,0.12);
+        position:absolute;
+        bottom: 18%;
+        left: 18%;
+        animation: legalPulse 1.2s ease-in-out infinite;
+      }
+      @keyframes legalPulse{
+        0%,100%{ transform: scale(0.95); opacity:0.75; }
+        50%{ transform: scale(1.07); opacity:1; }
+      }
+
+      .square.last-from{
+        animation: fromGlow 700ms ease-out;
+      }
+      .square.last-to{
+        animation: toGlow 700ms ease-out;
+      }
+      @keyframes fromGlow{
+        0%{ box-shadow: inset 0 0 0 0 rgba(124,92,255,0.0); }
+        20%{ box-shadow: inset 0 0 0 3px rgba(124,92,255,0.7); }
+        100%{ box-shadow: inset 0 0 0 0 rgba(124,92,255,0.0); }
+      }
+      @keyframes toGlow{
+        0%{ box-shadow: inset 0 0 0 0 rgba(0,212,255,0.0); }
+        20%{ box-shadow: inset 0 0 0 3px rgba(0,212,255,0.75); }
+        60%{ transform: scale(1.03); }
+        100%{ box-shadow: inset 0 0 0 0 rgba(0,212,255,0.0); transform: scale(1); }
+      }
+
+      .side{
+        padding: 14px;
+      }
+      .side h2{
+        margin: 0 0 12px;
+        font-size: 14px;
+        letter-spacing:0.4px;
+        color: rgba(255,255,255,0.85);
+        text-transform: uppercase;
+      }
+
+      .kv{
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        padding: 10px 12px;
+        border-radius: 14px;
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.10);
+        margin-bottom: 10px;
+      }
+      .kv span:first-child{
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .kv span:last-child{
+        font-weight: 800;
+        letter-spacing:0.2px;
+      }
+
+      .movesWrap{
+        margin-top: 12px;
+      }
+      .movesTable{
+        width: 100%;
+        table-layout: fixed;
+        border-collapse: collapse;
+        overflow: hidden;
+        border-radius: 14px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(255,255,255,0.04);
+      }
+      .movesTable thead th{
+        text-align: left;
+        font-size: 12px;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        color: rgba(255,255,255,0.8);
+        padding: 10px 10px;
+        border-bottom: 1px solid rgba(255,255,255,0.10);
+        background: rgba(0,0,0,0.14);
+        position: sticky;
+        top: 0;
+        z-index: 1;
+      }
+      .movesTable tbody td{
+        padding: 9px 10px;
+        border-bottom: 1px solid rgba(255,255,255,0.08);
+        color: rgba(255,255,255,0.88);
+        font-size: 13px;
+        height: 32px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .movesTable tbody tr:nth-child(odd) td{
+        background: rgba(255,255,255,0.02);
+      }
+      .movesTable tbody tr:hover td{
+        background: rgba(0,212,255,0.06);
+      }
+      .movesTable tbody tr:last-child td{
+        border-bottom: none;
+      }
+      .movesTable td.num{
+        width: 52px;
+        color: rgba(255,255,255,0.6);
+      }
+      .movesTable td.muted{
+        color: rgba(255,255,255,0.35);
+      }
+      .movesScroll{
+        height: 320px; /* ~10 rows visible */
+        max-height: 320px;
+        overflow: auto;
+        border-radius: 14px;
+        scrollbar-gutter: stable;
+      }
+
+      .hint{
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.55;
+      }
+
+      .mono{
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      }
+
+      .footerNote{
+        margin-top: 14px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.5;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="bg-shift" aria-hidden="true"></div>
+    <div class="wrap">
+      <header>
+        <div class="brand">
+          <h1>Neural Chess</h1>
+          <p>AI-powered chess with smooth, animated UI.</p>
+        </div>
+
+        <div class="toolbar">
+          <button id="newGameBtn" class="btn">New Game</button>
+          <button id="resetBtn" class="btn secondary">Reset Position</button>
+          <button id="flipBtn" class="btn secondary">Flip Board</button>
+        </div>
+      </header>
+
+      <main>
+        <section class="card boardCard">
+          <div class="boardTop">
+            <div id="turnBadge" class="badge">
+              Turn: <strong id="turnLabel">-</strong>
+            </div>
+            <div id="thinking" class="thinking" hidden>
+              <span class="spinner" aria-hidden="true"></span>
+              AI is thinking...
+            </div>
+          </div>
+
+          <div id="statusLine" class="statusLine"></div>
+
+          <div id="board" class="board" aria-label="Chess board" role="application"></div>
+        </section>
+
+        <aside class="side">
+          <div class="card" style="padding:14px; margin-bottom:14px;">
+            <h2>Live Info</h2>
+            <div class="kv">
+              <span>User Score</span>
+              <span id="userScore" class="mono">--</span>
+            </div>
+            <div class="kv">
+              <span>AI Score</span>
+              <span id="aiScore" class="mono">--</span>
+            </div>
+            <div class="kv">
+              <span>Last Move</span>
+              <span id="lastMove" class="mono">--</span>
+            </div>
+            <div class="kv">
+              <span>AI Plays</span>
+              <span id="aiColorLabel" class="mono">Black</span>
+            </div>
+
+            <p id="message" class="hint" style="margin:10px 2px 0;"></p>
+
+            <div class="movesWrap">
+              <h2 style="margin-top:14px;">Moves</h2>
+              <div class="movesScroll">
+                <table class="movesTable" aria-label="Move list">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Side</th>
+                      <th>Move</th>
+                    </tr>
+                  </thead>
+                  <tbody id="movesBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="card" style="padding:14px;">
+            <h2>Controls</h2>
+            <div class="hint">
+              <div>1. Click a piece you own.</div>
+              <div>2. Click a highlighted destination.</div>
+              <div>3. The AI moves automatically.</div>
+            </div>
+
+            <p class="footerNote">
+              If the AI is still loading, the backend will respond once the model is ready.
+            </p>
+          </div>
+        </aside>
+      </main>
+    </div>
+
+    <script type="module">
+      import { Chess } from "https://unpkg.com/chess.js@1.4.0/dist/esm/chess.js";
+
+      const BACKEND_URL = "http://localhost:3000";
+
+      const boardEl = document.getElementById("board");
+      const turnLabelEl = document.getElementById("turnLabel");
+      const thinkingEl = document.getElementById("thinking");
+      const statusLineEl = document.getElementById("statusLine");
+      const userScoreEl = document.getElementById("userScore");
+      const aiScoreEl = document.getElementById("aiScore");
+      const lastMoveEl = document.getElementById("lastMove");
+      const messageEl = document.getElementById("message");
+      const movesBodyEl = document.getElementById("movesBody");
+
+      const newGameBtn = document.getElementById("newGameBtn");
+      const resetBtn = document.getElementById("resetBtn");
+      const flipBtn = document.getElementById("flipBtn");
+
+      const state = {
+        game: new Chess(),
+        selected: null,
+        legalTargets: new Set(),
+        flipped: false,
+        locked: false,
+        playerColor: "w",
+        aiColor: "b",
+        lastMove: null,
+        captureScore: { w: 0, b: 0 },
+        moveLog: [], // [{ ply: 1, side: "White", san: "e4" }]
+        lastAIMove: null, // {from,to}
+      };
+
+      const UNICODE_PIECES = {
+        w: { k: "♔", q: "♕", r: "♖", b: "♗", n: "♘", p: "♙" },
+        b: { k: "♚", q: "♛", r: "♜", b: "♝", n: "♞", p: "♟" },
+      };
+
+      const CAPTURE_POINTS = { p: 1, q: 10, r: 5, b: 5, n: 5, k: 0 };
+
+      function updateScoreUI() {
+        userScoreEl.textContent = String(state.captureScore[state.playerColor] ?? 0);
+        aiScoreEl.textContent = String(state.captureScore[state.aiColor] ?? 0);
+      }
+
+      function addMoveToTable(moveResult) {
+        if (!moveResult || typeof moveResult.san !== "string") return;
+        const mover = moveResult.color; // 'w' or 'b'
+        const ply = state.game.history().length; // already includes this move
+        state.moveLog.push({
+          ply,
+          side: mover === "w" ? "White" : "Black",
+          san: moveResult.san,
+        });
+
+        renderMovesTable();
+      }
+
+      function renderMovesTable() {
+        if (!movesBodyEl) return;
+        movesBodyEl.innerHTML = "";
+        const rows = state.moveLog.slice(-10);
+        const padCount = Math.max(0, 10 - rows.length);
+
+        for (let i = 0; i < padCount; i++) {
+          const tr = document.createElement("tr");
+          const tdN = document.createElement("td");
+          tdN.className = "num mono muted";
+          tdN.textContent = "—";
+          const tdSide = document.createElement("td");
+          tdSide.className = "mono muted";
+          tdSide.textContent = "—";
+          const tdMove = document.createElement("td");
+          tdMove.className = "mono muted";
+          tdMove.textContent = "—";
+          tr.appendChild(tdN);
+          tr.appendChild(tdSide);
+          tr.appendChild(tdMove);
+          movesBodyEl.appendChild(tr);
+        }
+
+        for (const r of rows) {
+          const tr = document.createElement("tr");
+          const tdN = document.createElement("td");
+          tdN.className = "num mono";
+          tdN.textContent = String(r.ply);
+          const tdSide = document.createElement("td");
+          tdSide.className = "mono";
+          tdSide.textContent = r.side;
+          const tdMove = document.createElement("td");
+          tdMove.className = "mono";
+          tdMove.textContent = r.san;
+          tr.appendChild(tdN);
+          tr.appendChild(tdSide);
+          tr.appendChild(tdMove);
+          movesBodyEl.appendChild(tr);
+        }
+
+        // Auto-scroll to bottom.
+        const scroller = movesBodyEl.closest(".movesScroll");
+        if (scroller) scroller.scrollTop = scroller.scrollHeight;
+      }
+
+      function applyCapturePoints(moveResult) {
+        if (!moveResult || !moveResult.captured) return;
+        const pts = CAPTURE_POINTS[moveResult.captured] ?? 0;
+        const mover = moveResult.color; // 'w' or 'b'
+        if (mover !== "w" && mover !== "b") return;
+        state.captureScore[mover] = (state.captureScore[mover] ?? 0) + pts;
+        updateScoreUI();
+      }
+
+      function uiToSquare(row, col) {
+        if (!state.flipped) {
+          const file = String.fromCharCode("a".charCodeAt(0) + col);
+          const rank = 8 - row;
+          return `${file}${rank}`;
+        }
+        const file = String.fromCharCode("a".charCodeAt(0) + (7 - col));
+        const rank = row + 1;
+        return `${file}${rank}`;
+      }
+
+      function squareToUI(square) {
+        const file = square.charCodeAt(0) - "a".charCodeAt(0); // 0..7
+        const rank = Number(square[1]); // 1..8
+        if (!state.flipped) return { row: 8 - rank, col: file };
+        return { row: rank - 1, col: 7 - file };
+      }
+
+      function getSquareCenter(square) {
+        const pos = squareToUI(square);
+        const el = boardEl.querySelector(`.square[data-row="${pos.row}"][data-col="${pos.col}"]`);
+        if (!el) return null;
+        const br = boardEl.getBoundingClientRect();
+        const r = el.getBoundingClientRect();
+        return {
+          x: (r.left - br.left) + r.width / 2,
+          y: (r.top - br.top) + r.height / 2,
+        };
+      }
+
+      function renderArrow() {
+        const svg = boardEl.querySelector("#arrowLayer");
+        if (!svg) return;
+        while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+        if (!state.lastAIMove) return;
+        const a = getSquareCenter(state.lastAIMove.from);
+        const b = getSquareCenter(state.lastAIMove.to);
+        if (!a || !b) return;
+
+        const ns = "http://www.w3.org/2000/svg";
+        const defs = document.createElementNS(ns, "defs");
+        const marker = document.createElementNS(ns, "marker");
+        marker.setAttribute("id", "arrowHead");
+        marker.setAttribute("markerWidth", "12");
+        marker.setAttribute("markerHeight", "12");
+        marker.setAttribute("refX", "10");
+        marker.setAttribute("refY", "6");
+        marker.setAttribute("orient", "auto");
+        const tip = document.createElementNS(ns, "path");
+        tip.setAttribute("d", "M0,0 L12,6 L0,12 Z");
+        tip.setAttribute("fill", "rgba(46, 204, 113, 0.55)");
+        marker.appendChild(tip);
+        defs.appendChild(marker);
+        svg.appendChild(defs);
+
+        const line = document.createElementNS(ns, "line");
+        line.setAttribute("x1", String(a.x));
+        line.setAttribute("y1", String(a.y));
+        line.setAttribute("x2", String(b.x));
+        line.setAttribute("y2", String(b.y));
+        line.setAttribute("stroke", "rgba(46, 204, 113, 0.55)");
+        line.setAttribute("stroke-width", "5");
+        line.setAttribute("stroke-linecap", "round");
+        line.setAttribute("marker-end", "url(#arrowHead)");
+        svg.appendChild(line);
+
+        const glow = document.createElementNS(ns, "line");
+        glow.setAttribute("x1", String(a.x));
+        glow.setAttribute("y1", String(a.y));
+        glow.setAttribute("x2", String(b.x));
+        glow.setAttribute("y2", String(b.y));
+        glow.setAttribute("stroke", "rgba(46, 204, 113, 0.25)");
+        glow.setAttribute("stroke-width", "2");
+        glow.setAttribute("stroke-linecap", "round");
+        svg.appendChild(glow);
+      }
+
+      function setStatusFromGame() {
+        statusLineEl.classList.remove("check");
+        if (state.game.isCheckmate()) {
+          statusLineEl.textContent = "Checkmate.";
+          return;
+        }
+        if (state.game.isStalemate() || state.game.isDraw()) {
+          statusLineEl.textContent = "Draw.";
+          return;
+        }
+        if (state.game.isCheck()) {
+          const who = state.game.turn() === "w" ? "White" : "Black";
+          statusLineEl.textContent = `CHECK! (${who})`;
+          statusLineEl.classList.add("check");
+          return;
+        }
+        statusLineEl.textContent = "";
+      }
+
+      function updateLegalTargets() {
+        state.legalTargets.clear();
+        if (!state.selected) return;
+        if (state.game.turn() !== state.playerColor) return;
+        const moves = state.game.moves({ square: state.selected, verbose: true });
+        for (const m of moves) state.legalTargets.add(m.to);
+      }
+
+      function render() {
+        turnLabelEl.textContent = state.game.turn() === "w" ? "White" : "Black";
+        updateLegalTargets();
+        lastMoveEl.textContent = state.lastMove ? `${state.lastMove.from} -> ${state.lastMove.to}` : "--";
+
+        const squares = boardEl.querySelectorAll(".square");
+        for (const el of squares) {
+          const row = Number(el.dataset.row);
+          const col = Number(el.dataset.col);
+          const square = uiToSquare(row, col);
+          const pieceEl = el.querySelector(".piece");
+
+          const p = state.game.get(square);
+          pieceEl.textContent = p ? UNICODE_PIECES[p.color][p.type] : "";
+          pieceEl.className = p ? `piece ${p.color === "w" ? "white" : "black"}` : "piece";
+
+          el.classList.toggle("selected", state.selected === square);
+          el.classList.toggle("legal", state.legalTargets.has(square));
+          el.classList.toggle("last-from", Boolean(state.lastMove) && state.lastMove.from === square);
+          el.classList.toggle("last-to", Boolean(state.lastMove) && state.lastMove.to === square);
+        }
+
+        renderArrow();
+        setStatusFromGame();
+      }
+
+      function createBoard() {
+        boardEl.innerHTML = "";
+        const ns = "http://www.w3.org/2000/svg";
+        const svg = document.createElementNS(ns, "svg");
+        svg.setAttribute("id", "arrowLayer");
+        svg.setAttribute("class", "arrowLayer");
+        svg.setAttribute("viewBox", "0 0 680 680");
+        svg.setAttribute("preserveAspectRatio", "none");
+        boardEl.appendChild(svg);
+        for (let row = 0; row < 8; row++) {
+          for (let col = 0; col < 8; col++) {
+            const squareEl = document.createElement("div");
+            squareEl.className = `square ${((row + col) % 2 === 0) ? "light" : "dark"}`;
+            squareEl.dataset.row = String(row);
+            squareEl.dataset.col = String(col);
+
+            const pieceEl = document.createElement("span");
+            pieceEl.className = "piece";
+            squareEl.appendChild(pieceEl);
+
+            squareEl.addEventListener("click", () => onSquareClick(squareEl));
+            boardEl.appendChild(squareEl);
+          }
+        }
+      }
+
+      function needsPromotion(from, to) {
+        const fromPiece = state.game.get(from);
+        if (!fromPiece || fromPiece.type !== "p") return false;
+        const toRank = Number(to[1]);
+        return toRank === 1 || toRank === 8;
+      }
+
+      function tryMove(from, to) {
+        const legalMoves = state.game.moves({ square: from, verbose: true });
+        const match = legalMoves.find((m) => m.to === to);
+        if (!match) return null;
+        const promo = needsPromotion(from, to) ? "q" : undefined;
+        return promo ? state.game.move({ from, to, promotion: promo }) : state.game.move({ from, to });
+      }
+
+      function uciToMoveObject(uci) {
+        const from = uci.slice(0, 2);
+        const to = uci.slice(2, 4);
+        const promo = uci.length > 4 ? uci[4] : undefined;
+        return { from, to, promo };
+      }
+
+      function applyAIMove(uci, fenFromServer) {
+        const { from, to, promo } = uciToMoveObject(uci);
+
+        let result = null;
+        if (needsPromotion(from, to)) {
+          result = state.game.move({ from, to, promotion: promo || "q" });
+          if (!result && !promo) result = state.game.move({ from, to, promotion: "q" });
+        } else {
+          result = typeof promo === "string" ? state.game.move({ from, to, promotion: promo }) : state.game.move({ from, to });
+          if (!result) result = state.game.move({ from, to });
+        }
+
+        if (!result) throw new Error("AI move rejected by client move validator.");
+
+        applyCapturePoints(result);
+        addMoveToTable(result);
+        state.lastAIMove = { from: result.from, to: result.to };
+
+        if (typeof fenFromServer === "string" && fenFromServer.trim()) {
+          state.game.load(fenFromServer);
+        }
+
+        state.lastMove = { from: result.from, to: result.to };
+      }
+
+      async function maybeAIMove() {
+        if (state.locked || state.game.isGameOver()) return;
+        if (state.game.turn() !== state.aiColor) return;
+
+        state.locked = true;
+        thinkingEl.hidden = false;
+        messageEl.textContent = "";
+
+        try {
+          const res = await fetch(`${BACKEND_URL}/ai_move`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ fen: state.game.fen() }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
+
+          // Material/capture-based scoring is tracked locally from actual captures.
+          if (typeof data?.move !== "string") throw new Error("Missing `move` in AI response.");
+
+          applyAIMove(data.move, data.fen);
+        } catch (err) {
+          messageEl.textContent = `AI error: ${err?.message || String(err)}`;
+          console.error(err);
+        } finally {
+          thinkingEl.hidden = true;
+          state.locked = false;
+          render();
+        }
+      }
+
+      async function onSquareClick(squareEl) {
+        if (state.locked) return;
+        if (state.game.isGameOver()) return;
+        if (state.game.turn() !== state.playerColor) return;
+
+        const row = Number(squareEl.dataset.row);
+        const col = Number(squareEl.dataset.col);
+        const square = uiToSquare(row, col);
+
+        if (state.selected && state.selected === square) {
+          state.selected = null;
+          render();
+          return;
+        }
+
+        const clickedPiece = state.game.get(square);
+
+        if (!state.selected) {
+          if (clickedPiece && clickedPiece.color === state.playerColor) {
+            state.selected = square;
+            render();
+          }
+          return;
+        }
+
+        const from = state.selected;
+        const to = square;
+
+        try {
+          const result = tryMove(from, to);
+          if (!result) {
+            messageEl.textContent = "Illegal move. Pick another square.";
+            return;
+          }
+
+          applyCapturePoints(result);
+          addMoveToTable(result);
+
+          state.lastMove = { from: result.from, to: result.to };
+          state.selected = null;
+          messageEl.textContent = "";
+          render();
+          await maybeAIMove();
+        } catch (err) {
+          messageEl.textContent = `Move error: ${err?.message || String(err)}`;
+          console.error(err);
+        }
+      }
+
+      function hardResetToStart() {
+        state.game.reset();
+        state.selected = null;
+        state.legalTargets.clear();
+        state.lastMove = null;
+        state.lastAIMove = null;
+        state.captureScore = { w: 0, b: 0 };
+        state.moveLog = [];
+        renderMovesTable();
+        updateScoreUI();
+        lastMoveEl.textContent = "--";
+        messageEl.textContent = "";
+        render();
+      }
+
+      newGameBtn.addEventListener("click", async () => {
+        hardResetToStart();
+        await maybeAIMove();
+      });
+
+      resetBtn.addEventListener("click", async () => {
+        hardResetToStart();
+        await maybeAIMove();
+      });
+
+      flipBtn.addEventListener("click", () => {
+        state.flipped = !state.flipped;
+        render();
+      });
+
+      function setAiColorLabel() {
+        const label = document.getElementById("aiColorLabel");
+        label.textContent = state.aiColor === "b" ? "Black" : "White";
+      }
+
+      function boot() {
+        createBoard();
+        setAiColorLabel();
+        hardResetToStart();
+        maybeAIMove();
+      }
+
+      boot();
+    </script>
+  </body>
+</html>
+
