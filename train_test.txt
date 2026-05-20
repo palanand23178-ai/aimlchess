@@ -20,7 +20,8 @@ Running full test evaluation...
   Evaluated 61,696 / 63,439 positions...
 
 ══════════════════════════════════════════════════
-           FINAL TEST RESULTS
+final test result
+
 ══════════════════════════════════════════════════
   Test Loss       : 3.7587
   Move Accuracy   : 20.65%
